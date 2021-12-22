@@ -1,29 +1,35 @@
+require 'cli_pix'
+require 'rubygems'
+require 'terminal-display-colors'
+
 class World
-    attr_accessor :people, :quests, :location, :appearance
+    attr_accessor :people, :quests, :location, :appearance, :image
 
     def initialize()
         @people = Array.new
         @quests = Array.new
         @location = "Tavern of Drugra"
         @appearance = Array.new
-        @appearance = [
-           "##############",
-           "#    B |     #",
-           "#------      #",
-           "#            #",
-           "#            #",
-           "#--| |-------#"
-        ]
+        @appearance = "tavern.png"
+        @image = CliPix::Image.from_file(@appearance, autoscale: false)
+        #@appearance = [
+        #    "##############",
+        #    "#    B |     #",
+        #    "#------      #",
+        #    "#            #",
+        #    "#            #",
+        #    "#--| |-------#"
+        # ]
     end
 
     def seed_world(id_t,npc_1)
-        @appearance[id_t.y][id_t.x] = id_t.draw
-        @appearance[npc_1.y][npc_1.x] = npc_1.draw
+        #@appearance[id_t.y][id_t.x] = id_t.draw
+        #@appearance[npc_1.y][npc_1.x] = npc_1.draw
     end
 
     def update_graphics(id_t)
-        @appearance[id_t.y][id_t.x] = id_t.draw
-        @appearance[id_t.l_y][id_t.l_x] = " "
+        #@appearance[id_t.y][id_t.x] = id_t.draw
+        #@appearance[id_t.l_y][id_t.l_x] = " "
     end
 end
 
@@ -66,7 +72,7 @@ class Player
 end
 
 class Characters
-    attr_accessor :type, :draw, :x, :y, :name, :index_of_dia, :flair_text
+    attr_accessor :type, :draw, :x, :y, :name, :index_of_dia, :flair_text, :appearance, :image, :vector, :dialogue
 
     def initialize(x,y,draw,type,dia)
         @x = x
@@ -76,7 +82,7 @@ class Characters
         @dialogue = dia
         @index_of_dia = -1
         @vector = get_character_portrait()
-        @flair_text = ""
+        @flair_text = "Well there oh you.."
         @name = ["Bobly","Ross","Vossen"].sample
     end
 
@@ -95,7 +101,7 @@ class Characters
     end
 
     def push_dialogue()
-        puts @name + ": " + @dialogue[@index_of_dia]
+        puts @name.red + ": " + @dialogue[@index_of_dia]
     end
 
     def get_ind()
@@ -104,6 +110,7 @@ class Characters
 
     def update_dialogue()
         @index_of_dia += 1
+        @flair_text = ""
         if @index_of_dia > @dialogue.length - 1
             $new_game.selection = nil 
             $new_game.room_off = false
@@ -111,17 +118,19 @@ class Characters
     end
 
     def get_character_portrait()
-        return [
-            "            ",
-            '   ^^  ^^   ',
-            ' %^^^^^^^^% ',
-            '/##/#||#\#\#',
-            "|#--#||#--#|",
-            "[<o>^||^<o>]",
-            " #---<>---# ",
-            "  (------)  ",
-            "   __##__   "
-        ] if @type == "wizard"
+        @appearance = "wizard.png"
+        @image = CliPix::Image.from_file(@appearance, autoscale: false)
+        return @image
+        #     "            ",
+        #     '   ^^  ^^   ',
+        #     ' %^^^^^^^^% ',
+        #     '/##/#||#\#\#',
+        #     "|#--#||#--#|",
+        #     "[<o>^||^<o>]",
+        #     " #---<>---# ",
+        #     "  (------)  ",
+        #     "   __##__   "
+        # ] if @type == "wizard"
     end
 end
 
@@ -144,18 +153,17 @@ class Game
     end
 
     def display_room()
-        puts @home_world.appearance
+        @current_world.image.display
+        #puts @home_world.appearance
     end
 
     def display_self()
-        puts "You are: " + @game_king_or_queen.name + " in the " + @home_world.location + " on a quest for: " + @current_quest
+        puts "You are: " + @game_king_or_queen.name.green + " in the " + @home_world.location + " on a quest for: " + @current_quest
     end
 
     def display_character(chr)
-        chr.render_character()
-        puts chr.get_ind
-        puts chr.flair_text
-        @selection.flair_text = "" if @selection != nil
+        chr.vector.display      
+        puts chr.flair_text + " " + chr.dialogue[chr.index_of_dia]
         @game_king_or_queen.update_commands(chr.get_ind)
     end
 
@@ -194,7 +202,7 @@ class Game
             set_name(@input) if @selection.index_of_dia == 1
             @game_king_or_queen.push_interaction(@input.upcase,@selection) if @selection.index_of_dia != 1
             if @selection.index_of_dia == 3
-               reset_from_chr_to_room
+               reset_from_chr_to_room()
             end
         end
         @selection.update_dialogue() if @selection != nil
