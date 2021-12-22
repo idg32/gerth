@@ -3,7 +3,7 @@ require 'rubygems'
 require 'terminal-display-colors'
 
 class World
-    attr_accessor :people, :quests, :location, :appearance, :image
+    attr_accessor :people, :quests, :location, :appearance, :image, :description
 
     def initialize()
         @people = Array.new
@@ -12,6 +12,7 @@ class World
         @appearance = Array.new
         @appearance = "tavern.png"
         @image = CliPix::Image.from_file(@appearance, autoscale: false)
+        @description = "A dank bar, full of nearly no one, save for a busty set bar maid, and a wierdly looking man in the corner."
         #@appearance = [
         #    "##############",
         #    "#    B |     #",
@@ -59,6 +60,10 @@ class Player
         @self = true if ind.include? "YOU"
         pers.tell_self() if @self && @question_who
         pers.tell_well_being() if @self && @question_how
+    end
+
+    def get_world_description(wrld)
+        @commands << wrld.description
     end
 
     def update_commands(ind_npx)
@@ -110,10 +115,8 @@ class Characters
 
     def update_dialogue()
         @index_of_dia += 1
-        @flair_text = ""
         if @index_of_dia > @dialogue.length - 1
-            $new_game.selection = nil 
-            $new_game.room_off = false
+            $new_game.reset_select()
         end
     end
 
@@ -135,13 +138,13 @@ class Characters
 end
 
 class Game
-    attr_accessor :home_world, :dungeon, :game_king_or_queen, :input, :update_t_f, :current_world, :current_quest
+    attr_accessor :home_world, :dungeon, :game_king_or_queen, :input, :update_t_f, :current_world, :current_quest, :display_log, :dialogue_log
 
     def initialize()
         @home_world = World.new
         @current_world = @home_world
         @game_king_or_queen = Player.new
-        @wilzard = Characters.new(12,4,"%","wizard",["Hey.", "Who?", "Want to find a wench?",""])
+        @wilzard = Characters.new(12,4,"%","wizard",["Hey.", "Now, who are you?", "Want to find a wench?",""])
         @home_world.seed_world(@game_king_or_queen, @wilzard)
         @game_king_or_queen.commands << @wilzard.draw + " - " + @wilzard.type
         @input = ""
@@ -149,7 +152,14 @@ class Game
         @selection = nil
         @room_off = false
         @current_quest = ""
+        @display_log = false
+        @dialogue_log = []
         tick()
+    end
+
+    def reset_select()
+        selection = nil 
+        room_off = false
     end
 
     def display_room()
@@ -161,13 +171,19 @@ class Game
         puts "You are: " + @game_king_or_queen.name.green + " in the " + @home_world.location + " on a quest for: " + @current_quest
     end
 
+    def parse_to_log(text)
+        @dialogue_log << text
+    end
+
     def display_character(chr)
         chr.vector.display      
-        puts chr.flair_text + " " + chr.dialogue[chr.index_of_dia]
+        puts chr.name.red + chr.flair_text + " " + chr.dialogue[chr.index_of_dia]
+        chr.flair_text = ""
         @game_king_or_queen.update_commands(chr.get_ind)
     end
 
     def display_commands()
+        puts @dialogue_log if @display_log
         puts @game_king_or_queen.commands
     end
 
@@ -178,6 +194,7 @@ class Game
     def reset_from_chr_to_room()
         @room_off = false 
         @selection.index_of_dia = 2
+        @selection.flair_text = ""
         @selection = nil
     end
 
@@ -197,15 +214,21 @@ class Game
             @selection.flair_text = "Go find her, lad..."
             @current_quest = "Find the WENCH!"
             @game_king_or_queen.commands = ["CONTINUE"]
+        when "LOG"
+            @display_log = true
+        when "LOOK"
+            @game_king_or_queen.get_world_description(@current_world)
         else
-            puts @selection.index_of_dia.to_s + "ind"
-            set_name(@input) if @selection.index_of_dia == 1
-            @game_king_or_queen.push_interaction(@input.upcase,@selection) if @selection.index_of_dia != 1
-            if @selection.index_of_dia == 3
+            puts @selection.index_of_dia.to_s + "ind" if @selection != nil
+            set_name(@input) if @selection != nil && @selection.index_of_dia == 1
+            @game_king_or_queen.push_interaction(@input.upcase,@selection) if @selection != nil && @selection.index_of_dia != 1
+            if @selection != nil && @selection.index_of_dia == 3
                reset_from_chr_to_room()
             end
         end
-        @selection.update_dialogue() if @selection != nil
+        @selection.update_dialogue() if @selection != nil && !@display_log
+        parse_to_log(@input)
+        parse_to_log(@selection.flair_text ) if @selection != nil
     end
 
     def tick()
@@ -214,6 +237,7 @@ class Game
         display_character(@selection) if @selection != nil
         display_self()
         display_commands()
+        @display_log = false if @display_log
         get_input()
         #@selection.flair_text = "" if @selection != nil
         if @update_t_f == true 
