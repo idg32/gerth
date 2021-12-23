@@ -1,8 +1,10 @@
 require 'cli_pix'
 require 'rubygems'
 require 'terminal-display-colors'
-require './player_diction.rb'
-require './npc.rb'
+require_relative './player_diction.rb'
+require_relative './npc.rb'
+
+puts "#"
 
 class World
     attr_accessor :people, :quests, :location, :appearance, :image, :description, :dialogue
@@ -63,7 +65,7 @@ class Player < Classless_Wordlist
     end
 end
 
-class Characters < TavernofDrugra
+class Characters
     attr_accessor :type, :draw, :x, :y, :name, :index_of_dia, :flair_text, :appearance, :image, :vector, :dialogue, :list_word
 
     def initialize(x,y,draw,type,dia,appearance)
@@ -78,6 +80,7 @@ class Characters < TavernofDrugra
         @name = ["Bobly","Ross","Vossen"].sample
         @appearance = appearance
         @image = CliPix::Image.from_file(@appearance, autoscale: false)
+        tavern_1() if @type == "bar keep"
     end
 
     def render_character()
@@ -114,13 +117,15 @@ class Characters < TavernofDrugra
     end
 
     def tavern_1()
-        super
+        @list_word = TavernofDrugra.new
+        @list_word = @list_word.tavern_1()
     end
 end
 
 class Game
     attr_accessor :home_world, :dungeon, :game_king_or_queen, :input, :update_t_f, :current_world, :current_quest, :display_log, :dialogue_log
-    attr_accessor :worlds_listing, :characters_met, 
+    attr_accessor :worlds_listing, :characters_met
+
     def initialize()
         @home_world = World.new
         @current_world = @home_world
@@ -141,7 +146,7 @@ class Game
     end
 
     def seed_world(id_t)
-        @bar_keep.tavern_1()
+        id_t.tavern_1()
     end
 
     def reset_select()
@@ -188,16 +193,26 @@ class Game
 
     def get_room_data()
         @input = @input.upcase.gsub(/[!@#$%^&*()-=_+|;':",.<>?']/, '')
-        puts @input
+        #puts @input
         get = @bar_keep.list_word
-        inder = @input.split(" ")
-        puts inder.length
-        for j in 0...@game_king_or_queen::words_list.size
+        inder = @input.split.each_slice(2).map{|a|a.join ' '}
+        #puts get , "list"
+        for j in 0...@game_king_or_queen.words_list.size
             for k in 0...inder.length
-                puts @game_king_or_queen.words_list[k]
-                return @current_world.dialogue = get[inder[j]] if (@game_king_or_queen::words_list.key?(inder[k]))
+                if (@game_king_or_queen.words_list.key?(inder[k]))
+                    #puts @game_king_or_queen.words_list[inder[k]]
+                    @current_world.dialogue += get[@game_king_or_queen.words_list[inder[k]]] 
+                    return true
+                else
+                    @current_world.dialogue = ["Well tis a lovely time here... Can't wait for those rats to barge in...", 
+                        "Who's a stranger to you!",
+                        "Haven't got a quiet evening yet!"
+                    ].sample
+                end
             end
+            #
         end
+        @update_t_f = false if @input.match?("QUIT")
     end
 
     def get_input()
@@ -214,14 +229,13 @@ class Game
     end
 
     def tick()
-        #system 'clear'
         display_room() if !@room_off
         display_character(@selection) if @selection != nil
         display_self()
         display_commands()
         puts @display_log = false if @display_log
         get_input()
-        if @update_t_f == true #|| !@input.include?("QUIT")
+        if @update_t_f == true && !@input.match?("QUIT")
             update()
         end 
     end
