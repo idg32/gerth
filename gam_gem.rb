@@ -1,9 +1,11 @@
 require 'cli_pix'
 require 'rubygems'
 require 'terminal-display-colors'
+require './player_diction.rb'
+require './npc.rb'
 
 class World
-    attr_accessor :people, :quests, :location, :appearance, :image, :description
+    attr_accessor :people, :quests, :location, :appearance, :image, :description, :dialogue
 
     def initialize()
         @people = Array.new
@@ -13,31 +15,15 @@ class World
         @appearance = "tavern.png"
         @image = CliPix::Image.from_file(@appearance, autoscale: false)
         @description = "A dank bar, full of nearly no one, save for a busty set bar maid, and a wierdly looking man in the corner."
-        #@appearance = [
-        #    "##############",
-        #    "#    B |     #",
-        #    "#------      #",
-        #    "#            #",
-        #    "#            #",
-        #    "#--| |-------#"
-        # ]
-    end
-
-    def seed_world(id_t,npc_1)
-        #@appearance[id_t.y][id_t.x] = id_t.draw
-        #@appearance[npc_1.y][npc_1.x] = npc_1.draw
-    end
-
-    def update_graphics(id_t)
-        #@appearance[id_t.y][id_t.x] = id_t.draw
-        #@appearance[id_t.l_y][id_t.l_x] = " "
+        @dialogue = ""
     end
 end
 
-class Player
-    attr_accessor :quest_log, :draw, :x, :y, :commands, :l_x, :l_y, :name, :indexer, :self, :question_who
+class Player < Classless_Wordlist
+    attr_accessor :quest_log, :draw, :x, :y, :commands, :l_x, :l_y, :name, :indexer, :self, :question_who, :words_list
 
     def initialize()
+        super
         @quest_log = Array.new
         @draw = "@"
         @x = 4
@@ -47,6 +33,7 @@ class Player
         @commands = []
         @name = "mystery"
         ind = []
+        #@words_list = Classless_Wordlist::words_list
     end
 
     def push_interaction(ind,pers)
@@ -76,10 +63,10 @@ class Player
     end
 end
 
-class Characters
-    attr_accessor :type, :draw, :x, :y, :name, :index_of_dia, :flair_text, :appearance, :image, :vector, :dialogue
+class Characters < TavernofDrugra
+    attr_accessor :type, :draw, :x, :y, :name, :index_of_dia, :flair_text, :appearance, :image, :vector, :dialogue, :list_word
 
-    def initialize(x,y,draw,type,dia)
+    def initialize(x,y,draw,type,dia,appearance)
         @x = x
         @y = y
         @draw = draw 
@@ -89,6 +76,8 @@ class Characters
         @vector = get_character_portrait()
         @flair_text = "Well there oh you.."
         @name = ["Bobly","Ross","Vossen"].sample
+        @appearance = appearance
+        @image = CliPix::Image.from_file(@appearance, autoscale: false)
     end
 
     def render_character()
@@ -121,32 +110,26 @@ class Characters
     end
 
     def get_character_portrait()
-        @appearance = "wizard.png"
-        @image = CliPix::Image.from_file(@appearance, autoscale: false)
         return @image
-        #     "            ",
-        #     '   ^^  ^^   ',
-        #     ' %^^^^^^^^% ',
-        #     '/##/#||#\#\#',
-        #     "|#--#||#--#|",
-        #     "[<o>^||^<o>]",
-        #     " #---<>---# ",
-        #     "  (------)  ",
-        #     "   __##__   "
-        # ] if @type == "wizard"
+    end
+
+    def tavern_1()
+        super
     end
 end
 
 class Game
     attr_accessor :home_world, :dungeon, :game_king_or_queen, :input, :update_t_f, :current_world, :current_quest, :display_log, :dialogue_log
-
+    attr_accessor :worlds_listing, :characters_met, 
     def initialize()
         @home_world = World.new
         @current_world = @home_world
         @game_king_or_queen = Player.new
-        @wilzard = Characters.new(12,4,"%","wizard",["Hey.", "Now, who are you?", "Want to find a wench?",""])
-        @home_world.seed_world(@game_king_or_queen, @wilzard)
-        @game_king_or_queen.commands << @wilzard.draw + " - " + @wilzard.type
+        @wilzard = Characters.new(12,4,"%","wizard",["Hey.", "Now, who are you?", "Want to find a wench?",""],"wizard.png")
+        @bar_keep = Characters.new(12,4,"B","bar keep",["Hey.", "Now, who are you?", "Want to find a wench?",""],"wizard.png")
+        @bar_keep.name = "Rillia Orthonol"
+        seed_world(@bar_keep)
+        #@game_king_or_queen.commands << @wilzard.draw + " - " + @wilzard.type
         @input = ""
         @update_t_f = true
         @selection = nil
@@ -157,6 +140,10 @@ class Game
         tick()
     end
 
+    def seed_world(id_t)
+        @bar_keep.tavern_1()
+    end
+
     def reset_select()
         selection = nil 
         room_off = false
@@ -164,6 +151,7 @@ class Game
 
     def display_room()
         @current_world.image.display
+        puts @current_world.dialogue
         #puts @home_world.appearance
     end
 
@@ -198,33 +186,27 @@ class Game
         @selection = nil
     end
 
+    def get_room_data()
+        @input = @input.upcase.gsub(/[!@#$%^&*()-=_+|;':",.<>?']/, '')
+        puts @input
+        get = @bar_keep.list_word
+        inder = @input.split(" ")
+        puts inder.length
+        for j in 0...@game_king_or_queen::words_list.size
+            for k in 0...inder.length
+                puts @game_king_or_queen.words_list[k]
+                return @current_world.dialogue = get[inder[j]] if (@game_king_or_queen::words_list.key?(inder[k]))
+            end
+        end
+    end
+
     def get_input()
         @input = gets.chomp
-        puts @input.upcase
-        case @input.upcase
-        when "%"
-            @room_off = true
-            @selection = @wilzard
-        when "QUIT"
-            @update_t_f = false
-            puts "Fairwell o' Strange One..."
-        when "NO"
-            reset_from_chr_to_room()
-        when "YES"
-            @selection.flair_text = "Go find her, lad..."
-            @current_quest = "Find the WENCH!"
-            @game_king_or_queen.commands = ["CONTINUE"]
-        when "LOG"
-            @display_log = true
-        when "LOOK"
-            @game_king_or_queen.get_world_description(@current_world)
-        else
-            puts @selection.index_of_dia.to_s + "ind" if @selection != nil
-            set_name(@input) if @selection != nil && @selection.index_of_dia == 1
-            @game_king_or_queen.push_interaction(@input.upcase,@selection) if @selection != nil && @selection.index_of_dia != 1
-            if @selection != nil && @selection.index_of_dia == 3
-               reset_from_chr_to_room()
-            end
+        
+        if !@room_off
+            get_room_data()
+        else 
+            have_conversation()
         end
         @selection.update_dialogue() if @selection != nil && !@display_log
         parse_to_log(@input)
@@ -232,15 +214,14 @@ class Game
     end
 
     def tick()
-        system 'clear'
+        #system 'clear'
         display_room() if !@room_off
         display_character(@selection) if @selection != nil
         display_self()
         display_commands()
-        @display_log = false if @display_log
+        puts @display_log = false if @display_log
         get_input()
-        #@selection.flair_text = "" if @selection != nil
-        if @update_t_f == true 
+        if @update_t_f == true #|| !@input.include?("QUIT")
             update()
         end 
     end
