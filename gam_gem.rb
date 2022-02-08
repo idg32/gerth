@@ -1,9 +1,11 @@
-require 'cli_pix'
+require 'image_sorcery'
+require 'RMagick'
+require 'soundplayer'
 require 'rubygems'
 require 'terminal-display-colors'
 require_relative './player_diction.rb'
 require_relative './npc.rb'
-
+include Magick
 puts "#"
 
 class World
@@ -15,7 +17,7 @@ class World
         @location = "Tavern of Drugra"
         @appearance = Array.new
         @appearance = "tavern.png"
-        @image = CliPix::Image.from_file(@appearance, autoscale: false)
+        @image = ImageList.new(@appearance)
         @description = "A dank bar, full of nearly no one, save for a busty set bar maid, and a wierdly looking man in the corner."
         @dialogue = ""
     end
@@ -79,7 +81,7 @@ class Characters
         @flair_text = "Well there oh you.."
         @name = ["Bobly","Ross","Vossen"].sample
         @appearance = appearance
-        @image = CliPix::Image.from_file(@appearance, autoscale: false)
+        @image = ImageSorcery.new(@appearance)
         tavern_1() if @type == "bar keep"
     end
 
@@ -127,6 +129,7 @@ class Game
     attr_accessor :worlds_listing, :characters_met
 
     def initialize()
+        #t = Thread.new { Sound.play 'dust_is_tasteless.wav' }
         @home_world = World.new
         @current_world = @home_world
         @game_king_or_queen = Player.new
